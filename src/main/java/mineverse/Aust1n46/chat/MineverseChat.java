@@ -6,6 +6,8 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -13,6 +15,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import mineverse.Aust1n46.chat.crypto.ChatEncryption;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -127,6 +135,8 @@ public class MineverseChat extends JavaPlugin implements PluginMessageListener {
 		Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&e - Attaching to Executors"));
 		
 		Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&e - Establishing BungeeCord"));
+
+		loadEncryptionKey();
 		Bukkit.getMessenger().registerOutgoingPluginChannel(this, PLUGIN_MESSAGING_CHANNEL);
 		Bukkit.getMessenger().registerIncomingPluginChannel(this, PLUGIN_MESSAGING_CHANNEL, this);
 		
@@ -161,6 +171,22 @@ public class MineverseChat extends JavaPlugin implements PluginMessageListener {
 		Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&e - Disabling..."));
 		Bukkit.getConsoleSender().sendMessage(Format.FormatStringAll("&8[&eVentureChat&8]&e - Disabled Successfully"));
 	}
+
+	private void loadEncryptionKey() {
+		try {
+			String key = getConfig().getString("encryption-key");
+
+			if (key == null || key.isEmpty()) {
+				key = ChatEncryption.generateKey();
+				getConfig().set("encryption-key", key);
+				saveConfig();
+			}
+
+			ChatEncryption.init(ChatEncryption.decodeKey(key));
+		} catch (NoSuchPaddingException | NoSuchAlgorithmException | InvalidKeyException e) {
+            throw new RuntimeException(e);
+        }
+    }
 	
 	private void startRepeatingTasks() {
 		BukkitScheduler scheduler = Bukkit.getServer().getScheduler();
@@ -338,8 +364,13 @@ public class MineverseChat extends JavaPlugin implements PluginMessageListener {
 	}
 	
 	public static void sendPluginMessage(ByteArrayOutputStream byteOutStream) {
-		if(MineverseChatAPI.getOnlineMineverseChatPlayers().size() > 0) {
-			MineverseChatAPI.getOnlineMineverseChatPlayers().iterator().next().getPlayer().sendPluginMessage(getInstance(), PLUGIN_MESSAGING_CHANNEL, byteOutStream.toByteArray());
+		if(!MineverseChatAPI.getOnlineMineverseChatPlayers().isEmpty()) {
+            try {
+                byte[] data = ChatEncryption.encrypt(byteOutStream.toByteArray());
+				MineverseChatAPI.getOnlineMineverseChatPlayers().iterator().next().getPlayer().sendPluginMessage(getInstance(), PLUGIN_MESSAGING_CHANNEL, data);
+			} catch (IllegalBlockSizeException | BadPaddingException e) {
+                throw new RuntimeException(e);
+            }
 		}
 	}
 	
@@ -362,12 +393,19 @@ public class MineverseChat extends JavaPlugin implements PluginMessageListener {
 	}
 
 	@Override
-	public void onPluginMessageReceived(String channel, Player player, byte[] inputStream) {
+	public void onPluginMessageReceived(String channel, Player player, byte[] data) {
 		if(!channel.equals(PLUGIN_MESSAGING_CHANNEL)) {
 			return;
 		}
+
+		byte[] decrypted = ChatEncryption.decrypt(data);
+
+		if(decrypted == null) {
+			return; // exploit attempt
+		}
+
 		try {
-			DataInputStream msgin = new DataInputStream(new ByteArrayInputStream(inputStream));
+			DataInputStream msgin = new DataInputStream(new ByteArrayInputStream(decrypted));
 			if(getConfig().getString("loglevel", "info").equals("debug")) {
 				System.out.println(msgin.available() + " size on receiving end");
 			}

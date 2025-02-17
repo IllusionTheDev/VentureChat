@@ -5,6 +5,7 @@ import static mineverse.Aust1n46.chat.MineverseChat.LINE_LENGTH;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 
+import mineverse.Aust1n46.chat.crypto.ChatEncryption;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.command.Command;
@@ -54,7 +55,7 @@ public class Chwho extends Command {
 							out.writeUTF("Get");
 							out.writeUTF(mcp.getUUID().toString());
 							out.writeUTF(channel.getName());
-							mcp.getPlayer().sendPluginMessage(plugin, MineverseChat.PLUGIN_MESSAGING_CHANNEL, byteOutStream.toByteArray());
+							mcp.getPlayer().sendPluginMessage(plugin, MineverseChat.PLUGIN_MESSAGING_CHANNEL, ChatEncryption.encrypt(byteOutStream.toByteArray()));
 							out.close();
 						} catch (Exception e) {
 							e.printStackTrace();

@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
+import mineverse.Aust1n46.chat.crypto.ChatEncryption;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -64,7 +65,7 @@ public class Ignore extends Command {
 				out.writeUTF("Send");
 				out.writeUTF(args[0]);
 				out.writeUTF(mcp.getUUID().toString());
-				mcp.getPlayer().sendPluginMessage(plugin, MineverseChat.PLUGIN_MESSAGING_CHANNEL, byteOutStream.toByteArray());
+				mcp.getPlayer().sendPluginMessage(plugin, MineverseChat.PLUGIN_MESSAGING_CHANNEL, ChatEncryption.encrypt(byteOutStream.toByteArray()));
 				out.close();
 			} catch (Exception e) {
 				e.printStackTrace();

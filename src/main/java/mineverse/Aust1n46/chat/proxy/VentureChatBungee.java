@@ -3,10 +3,17 @@ package mineverse.Aust1n46.chat.proxy;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import mineverse.Aust1n46.chat.crypto.ChatEncryption;
 import mineverse.Aust1n46.chat.database.ProxyPlayerData;
 import mineverse.Aust1n46.chat.utilities.Format;
 import mineverse.Aust1n46.chat.utilities.UUIDFetcher;
@@ -46,6 +53,7 @@ public class VentureChatBungee extends Plugin implements Listener, VentureChatPr
 				Files.copy(getResourceAsStream("bungeeconfig.yml"), config.toPath());
 			}
 			bungeeConfig = ConfigurationProvider.getProvider(YamlConfiguration.class).load(new File(getDataFolder(), "bungeeconfig.yml"));
+			loadEncryptionKey();
 		}
 		catch(Exception e) {
 			e.printStackTrace();
@@ -78,6 +86,30 @@ public class VentureChatBungee extends Plugin implements Listener, VentureChatPr
 	public void onPlayerJoinNetwork(PostLoginEvent event) {
 		UUIDFetcher.checkOfflineUUIDWarningProxy(event.getPlayer().getUniqueId(), this);
 	}
+
+	private void loadEncryptionKey() {
+		try {
+			String key = bungeeConfig.getString("encryption-key");
+
+			if (key == null || key.isEmpty()) {
+				key = ChatEncryption.generateKey();
+				bungeeConfig.set("encryption-key", key);
+				saveConfig();
+			}
+
+			ChatEncryption.init(ChatEncryption.decodeKey(key));
+		} catch (NoSuchPaddingException | NoSuchAlgorithmException | InvalidKeyException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private void saveConfig() {
+		try {
+			ConfigurationProvider.getProvider(YamlConfiguration.class).save(bungeeConfig, new File(getDataFolder(), "velocityconfig.yml"));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 	
 	private void updatePlayerNames() {
 		try {
@@ -109,12 +141,24 @@ public class VentureChatBungee extends Plugin implements Listener, VentureChatPr
 			return;
 		}
 		String serverName = ((Server) event.getSender()).getInfo().getName();
-		VentureChatProxy.onPluginMessage(event.getData(), serverName, this);
+
+		byte[] decrypted = ChatEncryption.decrypt(event.getData());
+
+		if(decrypted == null) {
+			return; // exploit attempt
+		}
+
+		VentureChatProxy.onPluginMessage(decrypted, serverName, this);
 	}
 
 	@Override
 	public void sendPluginMessage(String serverName, byte[] data) {
-		getProxy().getServers().get(serverName).sendData(VentureChatProxy.PLUGIN_MESSAGING_CHANNEL_STRING, data);
+        try {
+            byte[] encrypted = ChatEncryption.encrypt(data);
+			getProxy().getServers().get(serverName).sendData(VentureChatProxy.PLUGIN_MESSAGING_CHANNEL_STRING, encrypted);
+		} catch (IllegalBlockSizeException | BadPaddingException e) {
+            throw new RuntimeException(e);
+        }
 	}
 
 	@Override

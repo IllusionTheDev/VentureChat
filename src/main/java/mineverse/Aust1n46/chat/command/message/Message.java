@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import mineverse.Aust1n46.chat.crypto.ChatEncryption;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -198,7 +199,7 @@ public class Message extends Command {
 			out.writeUTF(echo);
 			out.writeUTF(spy);
 			out.writeUTF(msg);
-			mcp.getPlayer().sendPluginMessage(plugin, MineverseChat.PLUGIN_MESSAGING_CHANNEL, byteOutStream.toByteArray());
+			mcp.getPlayer().sendPluginMessage(plugin, MineverseChat.PLUGIN_MESSAGING_CHANNEL, ChatEncryption.encrypt(byteOutStream.toByteArray()));
 			out.close();
 		} catch (Exception e) {
 			e.printStackTrace();

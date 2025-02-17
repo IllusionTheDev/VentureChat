@@ -6,11 +6,17 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import mineverse.Aust1n46.chat.crypto.ChatEncryption;
 import org.slf4j.Logger;
 
 import com.google.inject.Inject;
@@ -76,6 +82,7 @@ public class VentureChatVelocity implements VentureChatProxySource {
 				Files.copy(getClass().getClassLoader().getResourceAsStream("velocityconfig.yml"), config.toPath());
 			}
 			velocityConfig = ConfigurationProvider.getProvider(YamlConfiguration.class).load(new File(dataFolder, "velocityconfig.yml"));
+			loadEncryptionKey();
 		}
 		catch(Exception e) {
 			e.printStackTrace();
@@ -127,6 +134,30 @@ public class VentureChatVelocity implements VentureChatProxySource {
 			e.printStackTrace();
 		}
 	}
+
+	private void loadEncryptionKey() {
+		try {
+			String key = velocityConfig.getString("encryption-key");
+
+			if (key == null || key.isEmpty()) {
+				key = ChatEncryption.generateKey();
+				velocityConfig.set("encryption-key", key);
+				saveConfig();
+			}
+
+			ChatEncryption.init(ChatEncryption.decodeKey(key));
+		} catch (NoSuchPaddingException | NoSuchAlgorithmException | InvalidKeyException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private void saveConfig() {
+		try {
+			ConfigurationProvider.getProvider(YamlConfiguration.class).save(velocityConfig, new File(dataPath.toFile(), "velocityconfig.yml"));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 	
 	@Subscribe
 	public void onPluginMessage(PluginMessageEvent event) {
@@ -138,7 +169,14 @@ public class VentureChatVelocity implements VentureChatProxySource {
 			return;
 		}
 		String serverName = ((ServerConnection) event.getSource()).getServerInfo().getName();
-		VentureChatProxy.onPluginMessage(event.getData(), serverName, this);
+
+		byte[] decrypted = ChatEncryption.decrypt(event.getData());
+
+		if(decrypted == null) {
+			return; // exploit attempt
+		}
+
+		VentureChatProxy.onPluginMessage(decrypted, serverName, this);
 		event.setResult(ForwardResult.handled());
 	}
 
@@ -146,7 +184,12 @@ public class VentureChatVelocity implements VentureChatProxySource {
 	public void sendPluginMessage(String serverName, byte[] data) {
 		Optional<RegisteredServer> server = proxyServer.getServer(serverName);
 		if(server.isPresent()) {
-			server.get().sendPluginMessage(channelIdentifier, data);
+            try {
+                byte[] encrypted = ChatEncryption.encrypt(data);
+				server.get().sendPluginMessage(channelIdentifier, encrypted);
+			} catch (IllegalBlockSizeException | BadPaddingException e) {
+                throw new RuntimeException(e);
+            }
 		}
 	}
 

@@ -9,6 +9,8 @@
 # Example filtered sentence: You caught a bass.  Will stay: You caught a bass.  
 # Example filtered sentence: You are an asshole.  Will become: You are an donutshole.
 # Default filters by Jabelpeeps
+encryption-key: ""
+
 filters:
 - (\b.?anus),donuts
 - (\ba+r*(se+|ss+(?!(ass|um|oc|ign|ist)).*?|s*e*h+[o0]*[l1]+e*[sz]*)\b),donuts

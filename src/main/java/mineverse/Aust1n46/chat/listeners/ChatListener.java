@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.util.Set;
 
+import mineverse.Aust1n46.chat.crypto.ChatEncryption;
 import net.essentialsx.api.v2.services.discord.DiscordService;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -554,7 +555,8 @@ public class ChatListener implements Listener {
 				}
 				out.writeUTF(MineverseChat.getVaultPermission().getPrimaryGroup(mcp.getPlayer()));
 				out.writeUTF(mcp.getNickname());
-				mcp.getPlayer().sendPluginMessage(plugin, MineverseChat.PLUGIN_MESSAGING_CHANNEL, byteOutStream.toByteArray());
+				byte[] encrypted = ChatEncryption.encrypt(byteOutStream.toByteArray());
+				mcp.getPlayer().sendPluginMessage(plugin, MineverseChat.PLUGIN_MESSAGING_CHANNEL, encrypted);
 				out.close();
 			}
 			catch(Exception e) {
