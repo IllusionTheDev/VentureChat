@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import mineverse.Aust1n46.chat.crypto.ChatEncryption;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -56,7 +57,7 @@ public class Removemessage extends Command {
 			try {
 				out.writeUTF("RemoveMessage");
 				out.writeUTF(String.valueOf(hash));
-				((Player) sender).sendPluginMessage(plugin, MineverseChat.PLUGIN_MESSAGING_CHANNEL, byteOutStream.toByteArray());
+				((Player) sender).sendPluginMessage(plugin, MineverseChat.PLUGIN_MESSAGING_CHANNEL, ChatEncryption.encrypt(byteOutStream.toByteArray()));
 				out.close();
 			} catch (Exception e) {
 				e.printStackTrace();

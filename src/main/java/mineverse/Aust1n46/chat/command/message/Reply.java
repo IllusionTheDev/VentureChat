@@ -3,6 +3,7 @@ package mineverse.Aust1n46.chat.command.message;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 
+import mineverse.Aust1n46.chat.crypto.ChatEncryption;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -144,7 +145,8 @@ public class Reply extends Command {
 			out.writeUTF(echo);
 			out.writeUTF(spy);
 			out.writeUTF(msg);
-			mcp.getPlayer().sendPluginMessage(plugin, MineverseChat.PLUGIN_MESSAGING_CHANNEL, byteOutStream.toByteArray());
+			byte[] encrypted = ChatEncryption.encrypt(byteOutStream.toByteArray());
+			mcp.getPlayer().sendPluginMessage(plugin, MineverseChat.PLUGIN_MESSAGING_CHANNEL, encrypted);
 			out.close();
 		} catch (Exception e) {
 			e.printStackTrace();
